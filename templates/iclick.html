@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet Map with FastAPI</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-ant-path/dist/leaflet-ant-path.css" />
+
+    <style>
+        #map { height: 600px; }
+        #btn {
+            position: absolute;
+            top: 10px;   /* 调整按钮的垂直位置 */
+            left: 60px;  /* 调整按钮的水平位置 */
+            z-index: 1000; /* 确保按钮在地图之上 */
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+    </div>
+    <button id="btn">规划路径</button>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-ant-path/dist/leaflet-ant-path.js"></script>
+    <script>
+        function haversineDistance(coord1, coord2) {
+            const R = 6371; // 地球半径，单位为千米
+            const lat1 = coord1[0] * (Math.PI / 180);
+            const lat2 = coord2[0] * (Math.PI / 180);
+            const dLat = (coord2[0] - coord1[0]) * (Math.PI / 180);
+            const dLon = (coord2[1] - coord1[1]) * (Math.PI / 180);
+
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1) * Math.cos(lat2) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // 返回距离，单位为千米
+        }
+    </script>
+
+    <script>
+        function tsp(coords) {
+            const n = coords.length;
+            const visited = Array(n).fill(false);
+            const path = [];
+            let minPathLength = Infinity;
+            let bestPath = [];
+
+            function backtrack(currentIndex, count, currentLength) {
+                path.push(currentIndex);
+
+                if (count === n) {
+                    if (currentLength < minPathLength) {
+                        minPathLength = currentLength;
+                        bestPath = [...path]; // 复制当前路径
+                    }
+                } else {
+                    for (let nextIndex = 0; nextIndex < n; nextIndex++) {
+                        if (!visited[nextIndex]) {
+                            visited[nextIndex] = true;
+                            backtrack(nextIndex, count + 1, currentLength + haversineDistance(coords[currentIndex], coords[nextIndex]));
+                            visited[nextIndex] = false;
+                        }
+                    }
+                }
+
+                path.pop(); // 回溯，移除当前城市
+            }
+
+            // 从第一个城市出发
+            visited[0] = true;
+            backtrack(0, 1, 0);
+            return bestPath.map(index => coords[index]);
+        }
+    </script>
+
+    <script>
+        var map = L.map('map').setView([34.8, 113.5], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        let points = [];
+        let polyline;
+
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+            points.push([lat, lng])
+
+            L.marker([lat, lng]).addTo(map)
+            .bindPopup(`点击位置: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+            .openPopup();
+
+            // 如果存在线条，更新线条
+            if (polyline) {
+                polyline.setLatLngs(points);
+            } else {
+                polyline = L.polyline(points, { color: 'blue' }).addTo(map);
+            }
+
+            sendLocationToBackend(lat, lng);
+        });
+
+        document.getElementById('btn').addEventListener('click', function() {
+        // 清除点和线条
+        if (polyline) {
+            map.removeLayer(polyline);
+            polyline = null;
+        }
+        // 移除所有标记
+        map.eachLayer(layer => {
+            if (layer instanceof L.Marker) {
+                map.removeLayer(layer);
+            }
+        });
+        points = tsp(points)
+        polyline = L.polyline.antPath(points, {
+            delay: 1000,
+            dashArray: [20,30],
+            length: 100,
+            pulseColor: '#FF0000',
+            }).addTo(map);
+        // polyline = L.polyline(points, { color: 'blue' }).addTo(map);
+        // points = [];
+
+        });
+
+
+        function sendLocationToBackend(lat, lng) {
+            fetch('http://localhost:8000/location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ latitude: lat, longitude: lng })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
