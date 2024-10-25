@@ -1,0 +1,9 @@
+fastapi==0.115.3
+geopandas==0.13.2
+geopy==2.4.1
+ilog==1.0.2
+pydantic==2.9.2
+pygeoops==0.4.0
+Requests==2.32.3
+Shapely==2.0.6
+uvicorn==0.32.0
