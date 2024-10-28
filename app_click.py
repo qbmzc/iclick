@@ -33,7 +33,7 @@ async def receive_location(location: Location):
     pnts = otravel.find_shortest_path()  # 点排序
     path = []  # 高德规划路径 多段
     for fp, tp in zip(pnts[:-1], pnts[1:]):
-        oAmap = AmapDriving(fp, tp)
+        oAmap = AmapDriving(fp)
         amap_path = oAmap.get_driving_route(fp, tp)
         path.append(amap_path)
     path = ';'.join(path)  # 高德路径拼接
