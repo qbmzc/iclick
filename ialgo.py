@@ -33,19 +33,23 @@ class TravelingSalesman:
 
     def calculate_distance(self, point1, point2):
         """计算两点间的欧几里得距离"""
+        print(point1)
+        print(point2)
+        p1=[point1['lat'],point1['lng']]
+        p2=[point2['lat'],point2['lng']]
         # 检查输入参数是否为元组或列表
-        if not (isinstance(point1, (tuple, list)) and isinstance(point2, (tuple, list))):
+        if not (isinstance(p1, (tuple, list)) and isinstance(p2, (tuple, list))):
             raise ValueError("Points must be tuples or lists")
 
         # 检查每个点是否包含两个元素
-        if len(point1) != 2 or len(point2) != 2:
+        if len(p1) != 2 or len(p2) != 2:
             raise ValueError("Each point must contain exactly two elements (latitude, longitude)")
 
         # 计算距离
-        distance = geodesic(point1, point2).m
+        distance = geodesic(p1, p2).m
 
         # 记录日志
-        logging.debug(f"Calculating distance between {point1} and {point2}")
+        logging.debug(f"Calculating distance between {p1} and {p2}")
         logging.debug(f"Distance: {distance} meters")
 
         return distance
